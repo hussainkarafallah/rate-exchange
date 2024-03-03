@@ -1,6 +1,5 @@
 rootProject.name = 'demo'
 
-include 'ledger-service'
 include 'order-service'
 include 'interface-common'
 

@@ -3,6 +3,8 @@ version: '3'
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
+    ports:
+      - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -29,8 +31,6 @@ services:
       POSTGRES_PASSWORD: eyeonthetv
     ports:
       - "9988:5432"
-    volumes:
-      - ./data/order:/var/lib/postgresql/data
 
   ledger-db:
     image: postgres:latest
@@ -40,5 +40,4 @@ services:
       POSTGRES_PASSWORD: andjusticeforall
     ports:
       - "9989:5432"
-    volumes:
-      - ./data/ledger:/var/lib/postgresql/data
+
