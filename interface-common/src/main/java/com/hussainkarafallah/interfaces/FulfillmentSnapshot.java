@@ -1,6 +1,6 @@
 package com.hussainkarafallah.interfaces;
 
-import java.util.List;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -8,11 +8,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@NoArgsConstructor
 @AllArgsConstructor
-@Data
+@NoArgsConstructor
 @Builder
-public class OrderSnapshot {
+@Data
+public class FulfillmentSnapshot {
 
     private UUID id;
 
@@ -20,9 +20,9 @@ public class OrderSnapshot {
 
     private String state;
 
-    private String type;
+    private BigDecimal targetQuantity;
 
-    private List<FulfillmentSnapshot> fulfillments;
-
-    private Long traderId;
+    private BigDecimal fulfilledQuantity;
+    private BigDecimal targetPrice;
+    private BigDecimal fulfilledPrice;
 }

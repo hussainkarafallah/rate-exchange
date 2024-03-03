@@ -28,6 +28,6 @@ public enum Instrument {
     }
 
     public boolean isComposite(){
-        return components.isEmpty();
+        return !components.isEmpty();
     }
 }

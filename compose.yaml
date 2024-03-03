@@ -14,7 +14,7 @@ services:
     depends_on:
       - zookeeper
     ports:
-      - "9092:9092"
+      - "9093:9093"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -31,13 +31,4 @@ services:
       POSTGRES_PASSWORD: eyeonthetv
     ports:
       - "9988:5432"
-
-  ledger-db:
-    image: postgres:latest
-    environment:
-      POSTGRES_DB: ledger
-      POSTGRES_USER: jameshetfield
-      POSTGRES_PASSWORD: andjusticeforall
-    ports:
-      - "9989:5432"
 

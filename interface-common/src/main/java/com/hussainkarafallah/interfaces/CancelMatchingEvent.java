@@ -7,15 +7,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Data
-public class OrderUpdateEvent {
-    private UUID eventId;
-    private UUID orderId;
-    private String oldState;
-    private String newState;
-    private OrderSnapshot snapshot;
+public class CancelMatchingEvent {
+    UUID requestId;
+    UUID orderId;
+    String instrument;
+    String type;
 }

@@ -17,6 +17,11 @@ tasks.named('test') {
 
 dependencies {
 	implementation project(':interface-common')
+	
+	// jackson
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
+
 
 	// spring related
 	implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'

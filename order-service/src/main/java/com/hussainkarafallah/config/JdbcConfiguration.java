@@ -2,9 +2,6 @@ package com.hussainkarafallah.config;
 
 import java.util.List;
 
-import com.hussainkarafallah.order.repository.converters.BytesToComponentMatchingRequestsConverter;
-import com.hussainkarafallah.order.repository.converters.ComponentMatchingRequestsToBytesConverter;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
@@ -17,9 +14,6 @@ public class JdbcConfiguration extends AbstractJdbcConfiguration {
 
     @Bean
     public JdbcCustomConversions jdbcCustomConversions() {
-        return new JdbcCustomConversions(List.of(
-            new BytesToComponentMatchingRequestsConverter(),
-            new ComponentMatchingRequestsToBytesConverter()
-        ));
+        return new JdbcCustomConversions(List.of());
     }
 }

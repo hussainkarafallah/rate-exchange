@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.hussainkarafallah.domain.Instrument;
 import com.hussainkarafallah.domain.OrderType;
+import com.hussainkarafallah.interfaces.OrderUpdateEvent;
 import com.hussainkarafallah.order.service.commands.CreateOrderCommand;
 
 import org.junit.jupiter.api.Test;
@@ -23,9 +24,12 @@ class CreateOrderTest extends BaseIntTest{
 			.price(Optional.of(aDecimal(0)))
 			.build();
 		// when
+		createOrder.exec(createOrderCommand);
 		// then
-		
-
+		awaitMessageSent(OrderUpdateEvent.class, ev -> {
+			return ev.getNewState().equals("OPEN")
+			&& ev.getSnapshot().getTraderId() == 123939L;
+		});
 	}
 
 }

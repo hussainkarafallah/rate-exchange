@@ -5,6 +5,7 @@ import com.hussainkarafallah.order.IdempotentActions;
 import com.hussainkarafallah.order.domain.Order;
 import com.hussainkarafallah.order.repository.OrderRepository;
 import com.hussainkarafallah.order.service.commands.CreateOrderCommand;
+import com.hussainkarafallah.order.service.commands.RequestFulfillmentCommand;
 import com.hussainkarafallah.utils.UuidUtils;
 import com.transferwise.idempotence4j.core.ActionId;
 import com.transferwise.idempotence4j.core.IdempotenceService;
@@ -24,7 +25,9 @@ public class CreateOrder {
 
     private final OrderRepository orderRepository;
 
-    private final BroadcastOrder broadcastOrder;
+    private final PublishOrderUpdate broadcastOrder;
+
+    private final RequestFulfillment requestFulfillment;
 
     @Transactional
     public void exec(CreateOrderCommand command){
@@ -47,6 +50,9 @@ public class CreateOrder {
             .traderId(command.getTraderId())
             .build();
         orderRepository.save(order);
+        order.getFulfillments().forEach(fulfillment -> {
+            requestFulfillment.exec(new RequestFulfillmentCommand(order.getId(), order.getOrderType(), fulfillment));
+        });
         broadcastOrder.onOrderCreated(order);
         return order;
     }
