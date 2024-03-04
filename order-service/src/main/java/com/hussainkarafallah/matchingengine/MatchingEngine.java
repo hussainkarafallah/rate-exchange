@@ -5,12 +5,10 @@ import static com.hussainkarafallah.config.ObjectMapperConfiguration.toBytes;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.PriorityQueue;
 import java.util.Properties;
 
 import com.hussainkarafallah.config.KafkaConfiguration;
-import com.hussainkarafallah.domain.MatchingType;
 import com.hussainkarafallah.interfaces.FulfillmentMatchedEvent;
 import com.hussainkarafallah.matchingengine.domain.MatchingOrder;
 import com.hussainkarafallah.messaging.KafkaTopics;
@@ -19,27 +17,29 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.util.Assert;
 
 public class MatchingEngine {
     private final PriorityQueue<MatchingOrder> sellOrdersPool;
-    private final LinkedList<MatchingOrder> pendingBuyOrders = new LinkedList<>();
-    private final LinkedList<MatchingOrder> sellOrdersWithNoPrice = new LinkedList<>();
+    private final PriorityQueue<MatchingOrder> pendingBuyOrders;
+    private final PriorityQueue<MatchingOrder> sellOrdersWithNoPrice;
     private final KafkaProducer<String, byte[]> producer;
 
     public MatchingEngine(KafkaConfiguration kafkaConfiguration){
+        Comparator<MatchingOrder> orderByOrderId = Comparator.comparing(MatchingOrder::getOrderId);
         sellOrdersPool = new PriorityQueue<>(Comparator.comparing(MatchingOrder::getPrice).thenComparing(MatchingOrder::getOrderId));
+        pendingBuyOrders = new PriorityQueue<>(orderByOrderId);
+        sellOrdersWithNoPrice = new PriorityQueue<>(orderByOrderId);
         producer = createProducer(kafkaConfiguration);
     }
 
     public void acceptBuyOrder(MatchingOrder buyOrder) {
         // first we try to match with the best price possible
-        if (!sellOrdersPool.isEmpty() && sellOrdersPool.peek().getPrice().compareTo(buyOrder.getPrice()) <= 0) {
+        if (!sellOrdersPool.isEmpty() && canMatch(buyOrder, sellOrdersPool.peek())) {
             match(buyOrder , sellOrdersPool.poll());
         }
         // we try to match with a sell order with no price 
         else if(!sellOrdersWithNoPrice.isEmpty()) {
-            match(buyOrder , sellOrdersWithNoPrice.pollFirst());
+            match(buyOrder , sellOrdersWithNoPrice.poll());
         }
         // we could not match and we add to our waiting list
         else {
@@ -52,7 +52,7 @@ public class MatchingEngine {
         // a sell order must always go to the pool unless we have pending buy orders
         while (iterator.hasNext()) {
             MatchingOrder buyOrder = iterator.next();
-            if (sellOrder.getPrice() == null || buyOrder.getPrice().compareTo(sellOrder.getPrice()) >= 0) {
+            if (canMatch(buyOrder, sellOrder)) {
                 match(buyOrder, sellOrder);
                 iterator.remove();
                 break;
@@ -66,9 +66,17 @@ public class MatchingEngine {
         }
     }
 
+    private boolean canMatch(MatchingOrder buyOrder, MatchingOrder sellOrder){
+        if(buyOrder.getPrice() == null && sellOrder.getPrice() == null){
+            return false;
+        }
+        if(buyOrder.getPrice() == null || sellOrder.getPrice() == null){
+            return true;
+        }
+        return buyOrder.getPrice().compareTo(sellOrder.getPrice()) >= 0;
+    }
+
     private void match(MatchingOrder buyOrder, MatchingOrder sellOrder){
-        Assert.isTrue(buyOrder.getType().equals(MatchingType.BUY) , () -> "first parameter is buy order");
-        Assert.isTrue(buyOrder.getType().equals(MatchingType.SELL) , () -> "second parameter is sell order");
         BigDecimal price = sellOrder.getPrice() == null ? buyOrder.getPrice() : sellOrder.getPrice();
         FulfillmentMatchedEvent event = FulfillmentMatchedEvent.builder()
             .buyFulfillmentId(buyOrder.getId())

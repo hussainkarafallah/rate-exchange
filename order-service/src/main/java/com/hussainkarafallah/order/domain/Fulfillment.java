@@ -28,6 +28,7 @@ public class Fulfillment {
     @NonNull
     private final BigDecimal targetPrice;
 
+    private UUID fulfillerId;
     private BigDecimal fulfilledQuantity;
     private BigDecimal fulfilledPrice;
 
@@ -40,6 +41,7 @@ public class Fulfillment {
         FulfillmentState state,
         BigDecimal targetQuantity,
         BigDecimal targetPrice,
+        UUID fulfillerId,
         BigDecimal fulfilledQuantity,
         BigDecimal fulfilledPrice,
         Instant dateUpdate
@@ -49,6 +51,7 @@ public class Fulfillment {
         this.state = state;
         this.targetQuantity = targetQuantity;
         this.targetPrice = targetPrice;
+        this.fulfillerId = fulfillerId;
         this.fulfilledQuantity = fulfilledQuantity;
         this.fulfilledPrice = fulfilledPrice;
         this.dateUpdated = dateUpdate;
@@ -56,14 +59,14 @@ public class Fulfillment {
             throw new DomainValidationException("fulfillments can only be for simple instruments");
         }
         if (state.equals(FulfillmentState.NOT_COMPLETED)) {
-            if (fulfilledQuantity != BigDecimal.ZERO || fulfilledPrice != null) {
+            if (fulfilledQuantity != BigDecimal.ZERO || fulfilledPrice != null || fulfillerId != null)  {
                 throw new DomainValidationException("Idle fulfillments should have null matching price and quantity");
             }
         }
     };
 
     public static Fulfillment newFulfillment(UUID id, Instrument instrument, BigDecimal targetQuantity, BigDecimal targetPrice) {
-        return new Fulfillment(id, instrument, FulfillmentState.NOT_COMPLETED, targetQuantity, targetPrice, BigDecimal.ZERO, null, Instant.now());
+        return new Fulfillment(id, instrument, FulfillmentState.NOT_COMPLETED, targetQuantity, targetPrice, null , BigDecimal.ZERO, null, Instant.now());
     }
 
     public void validate() {

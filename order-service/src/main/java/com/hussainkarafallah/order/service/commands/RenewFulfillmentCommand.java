@@ -1,16 +1,16 @@
 package com.hussainkarafallah.order.service.commands;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import com.hussainkarafallah.domain.Instrument;
-import com.hussainkarafallah.domain.OrderType;
 
 import lombok.Value;
 
 @Value
-public class CancelFulfillmentCommand {
+public class RenewFulfillmentCommand {
     UUID orderId;
-    UUID fulfillmentId;
     Instrument instrument;
-    OrderType type;
+    BigDecimal quantity;
+    BigDecimal price;
 }

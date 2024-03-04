@@ -21,7 +21,6 @@ public class MatchingOrder {
     private UUID orderId;
     @NonNull
     private Instrument instrument;
-    @NonNull
     private BigDecimal price;
     @NonNull
     private BigDecimal quantity;

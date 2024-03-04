@@ -11,7 +11,7 @@ import com.hussainkarafallah.order.domain.Fulfillment;
 import com.hussainkarafallah.order.domain.Order;
 import com.hussainkarafallah.order.mappers.OrderMapper;
 import com.hussainkarafallah.order.repository.OrderRepository;
-import com.hussainkarafallah.order.service.commands.CancelFulfillmentCommand;
+import com.hussainkarafallah.order.service.commands.RenewFulfillmentCommand;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +26,7 @@ public class CancelOrder {
 
     private final PublishOrderUpdate publishOrderUpdate;
 
-    private final CancelFulfillment cancelFulfillment;
+    private final RenewFulfillment renewFulfillment;
     
     @Transactional
     void cancelOrder(UUID orderId){
@@ -48,14 +48,14 @@ public class CancelOrder {
 
     private List<Fulfillment> cancelledFulfillments(Order order){
         return order.getFulfillments().stream().map(fulfillment -> {
-            if(!fulfillment.getState().equals(FulfillmentState.EXECUTED)){
-                cancelFulfillment.exec(new CancelFulfillmentCommand(
-                    order.getId(),
-                    fulfillment.getId(),
+            if(fulfillment.getState().equals(FulfillmentState.FULFILLED)){
+                renewFulfillment.exec(new RenewFulfillmentCommand(
+                    fulfillment.getFulfillerId(),
                     fulfillment.getInstrument(),
-                    order.getOrderType()
+                    fulfillment.getFulfilledQuantity(),
+                    fulfillment.getFulfilledPrice()
                 ));
-                fulfillment.setState(FulfillmentState.NOT_COMPLETED);
+                fulfillment.setState(FulfillmentState.REVERSED);
             }
             return fulfillment;
         
