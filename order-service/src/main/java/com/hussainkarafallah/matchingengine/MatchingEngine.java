@@ -3,34 +3,57 @@ package com.hussainkarafallah.matchingengine;
 import static com.hussainkarafallah.config.ObjectMapperConfiguration.toBytes;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.PriorityQueue;
-import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
 
-import com.hussainkarafallah.config.KafkaConfiguration;
+import com.hussainkarafallah.domain.MatchingType;
 import com.hussainkarafallah.interfaces.FulfillmentMatchedEvent;
 import com.hussainkarafallah.matchingengine.domain.MatchingOrder;
 import com.hussainkarafallah.messaging.KafkaTopics;
+import com.hussainkarafallah.utils.UuidUtils;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 
-public class MatchingEngine {
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class MatchingEngine implements Runnable {
     private final PriorityQueue<MatchingOrder> sellOrdersPool;
     private final PriorityQueue<MatchingOrder> pendingBuyOrders;
     private final PriorityQueue<MatchingOrder> sellOrdersWithNoPrice;
     private final KafkaProducer<String, byte[]> producer;
+    private final BlockingQueue<MatchingOrder> queue;
 
-    public MatchingEngine(KafkaConfiguration kafkaConfiguration){
+    public MatchingEngine(KafkaProducer<String, byte[]> producer, BlockingQueue<MatchingOrder> queue){
         Comparator<MatchingOrder> orderByOrderId = Comparator.comparing(MatchingOrder::getOrderId);
         sellOrdersPool = new PriorityQueue<>(Comparator.comparing(MatchingOrder::getPrice).thenComparing(MatchingOrder::getOrderId));
         pendingBuyOrders = new PriorityQueue<>(orderByOrderId);
         sellOrdersWithNoPrice = new PriorityQueue<>(orderByOrderId);
-        producer = createProducer(kafkaConfiguration);
+        this.producer = producer;
+        this.queue = queue;
     }
+
+    @Override
+    public void run() {
+        while(true){
+            List<MatchingOrder> orders = new ArrayList<>();
+            queue.drainTo(orders);
+            orders.forEach(order -> {
+                log.info("Engine:: Accepted order into the engine {} , {} , {}", order.getId(), order.getType(), order.getInstrument());
+                if (MatchingType.BUY.equals(order.getType())) {
+                    acceptBuyOrder(order);
+                } else if (MatchingType.SELL.equals(order.getType())) {
+                    acceptSellOrder(order);
+                }
+            });
+        }
+    }
+
 
     public void acceptBuyOrder(MatchingOrder buyOrder) {
         // first we try to match with the best price possible
@@ -43,6 +66,7 @@ public class MatchingEngine {
         }
         // we could not match and we add to our waiting list
         else {
+            log.info("Engine:: added buy order {} to pending queue" , buyOrder.getId());
             pendingBuyOrders.add(buyOrder);
         }
     }
@@ -59,14 +83,17 @@ public class MatchingEngine {
             }
         }
         if(sellOrder.getPrice() == null){
+            log.info("Engine:: added sell order {} to no price queue" , sellOrder.getId());
             sellOrdersWithNoPrice.add(sellOrder);
         }
         else{
+            log.info("Engine:: added sell order {} to pool" , sellOrder.getId());
             sellOrdersPool.add(sellOrder);
         }
     }
 
     private boolean canMatch(MatchingOrder buyOrder, MatchingOrder sellOrder){
+        log.info("Engine:: testing matching {} , {}" , buyOrder.getId() , sellOrder.getId());
         if(buyOrder.getPrice() == null && sellOrder.getPrice() == null){
             return false;
         }
@@ -77,8 +104,10 @@ public class MatchingEngine {
     }
 
     private void match(MatchingOrder buyOrder, MatchingOrder sellOrder){
+        log.info("Engine:: Matched {} , {}" , buyOrder.getId() , sellOrder.getId());
         BigDecimal price = sellOrder.getPrice() == null ? buyOrder.getPrice() : sellOrder.getPrice();
         FulfillmentMatchedEvent event = FulfillmentMatchedEvent.builder()
+            .matchId(UuidUtils.generatePrefixCombUuid())
             .buyFulfillmentId(buyOrder.getId())
             .buyOrderId(buyOrder.getOrderId())
             .sellFulfillmentId(sellOrder.getId())
@@ -88,24 +117,12 @@ public class MatchingEngine {
             .build();
         ProducerRecord<String,byte[]> record = new ProducerRecord<>(
             KafkaTopics.FULFILLMENT_MATCHED,
-            buyOrder.getId().toString(),
+            buyOrder.getInstrument().toString(),
             toBytes(event)
         );
         producer.send(record);
     }
 
 
-    private KafkaProducer<String , byte[]> createProducer(KafkaConfiguration configuration){
-        Properties props = new Properties();
-        props.put("bootstrap.servers", configuration.getBOOTSTRAP_SERVERS());
-        props.put("key.serializer", StringSerializer.class.getName());
-        props.put("value.serializer", ByteArraySerializer.class.getName());
-        // Acknowledge the leader broker after writing to its local log
-        props.put("acks", "1"); 
-        // Set additional configurations for low latency
-        props.put("linger.ms", "1"); // Wait at most 1 ms before sending a batch
-        props.put("compression.type", "none"); // Disable compression for lower latency
-        props.put("max.in.flight.requests.per.connection", "1"); // Send only one request at a time per connection
-        return new KafkaProducer<>(props);
-    }
+    
 }

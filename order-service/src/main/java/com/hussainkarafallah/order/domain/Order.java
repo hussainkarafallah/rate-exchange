@@ -3,15 +3,17 @@ package com.hussainkarafallah.order.domain;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import com.hussainkarafallah.domain.FulfillmentState;
 import com.hussainkarafallah.domain.Instrument;
 import com.hussainkarafallah.domain.OrderState;
 import com.hussainkarafallah.domain.OrderType;
 import com.hussainkarafallah.order.DomainValidationException;
 import com.hussainkarafallah.utils.UuidUtils;
-
-import org.apache.commons.lang3.NotImplementedException;
 
 import jakarta.annotation.Nonnull;
 import lombok.AllArgsConstructor;
@@ -58,7 +60,8 @@ public class Order {
         OrderType orderType,
         BigDecimal price,
         BigDecimal targetQuantity,
-        Long traderId
+        Long traderId,
+        Function<Instrument,BigDecimal> priceSupplier
     ) {
 
         if (targetQuantity.compareTo(BigDecimal.ZERO) == -1) {
@@ -77,7 +80,19 @@ public class Order {
         this.dateUpdated = this.dateCreated;
         
         if (instrument.isComposite()) {
-            throw new NotImplementedException("did not implement this yet for composite");
+            Map<Instrument , BigDecimal> componentsPrices = instrument.getComponents().stream().collect(
+                Collectors.toMap(Function.identity(), priceSupplier::apply)
+            );
+            BigDecimal compositePrice = componentsPrices.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+            this.fulfillments = instrument.getComponents().stream()
+                .map(component -> Fulfillment.newFulfillment(
+                    UuidUtils.generatePrefixCombUuid(),
+                    component,
+                    targetQuantity,
+                    price.multiply(componentsPrices.get(component)).divide(compositePrice))
+                )
+                .toList();
+            
         } else {
             this.fulfillments = List.of(Fulfillment.newFulfillment(UuidUtils.generatePrefixCombUuid(), instrument, targetQuantity, price));
         }
@@ -98,6 +113,21 @@ public class Order {
     public void setFullfilments(List<Fulfillment>fulfillments){
         this.fulfillments = fulfillments;
         validate();
+    }
+
+    public void addFulfillment(Fulfillment fulfillment){
+        this.fulfillments.add(fulfillment);
+    }
+
+    public boolean canExecute() {
+        boolean hasPending = fulfillments.stream().anyMatch(x -> x.getState().equals(FulfillmentState.NOT_COMPLETED));
+        return !(hasPending && getInstrument().isComposite());
+    };
+
+    public boolean canBeClosed(){
+        return fulfillments.stream().allMatch(
+            f -> f.getState().equals(FulfillmentState.EXECUTED) || f.getState().equals(FulfillmentState.REVERSED)
+        );
     }
 
 

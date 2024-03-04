@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.hussainkarafallah.order.IdempotentActions;
 import com.hussainkarafallah.order.domain.Order;
 import com.hussainkarafallah.order.repository.OrderRepository;
+import com.hussainkarafallah.order.repository.PriceBookEntryRepository;
 import com.hussainkarafallah.order.service.commands.CreateOrderCommand;
 import com.hussainkarafallah.order.service.commands.RequestFulfillmentCommand;
 import com.hussainkarafallah.utils.UuidUtils;
@@ -20,7 +21,6 @@ import lombok.RequiredArgsConstructor;;
 @RequiredArgsConstructor
 public class CreateOrder {
 
-
     private final IdempotenceService idempotenceService;
 
     private final OrderRepository orderRepository;
@@ -29,15 +29,17 @@ public class CreateOrder {
 
     private final RequestFulfillment requestFulfillment;
 
+    private final PriceBookEntryRepository priceBookEntryRepository;
+
     @Transactional
-    public void exec(CreateOrderCommand command){
+    public Order exec(CreateOrderCommand command){
         // since prefixCombUUid will be unique rest of parameters are not critical but just respecting library contract
         ActionId actionId = new ActionId(
             command.getIdempotencyUuid(),
             IdempotentActions.CREATE_ORDER.name(),
             command.getTraderId().toString()
         );
-        idempotenceService.execute(actionId, () -> createOrder(command), new TypeReference<Order>() {});
+        return idempotenceService.execute(actionId, () -> createOrder(command), new TypeReference<Order>() {});
     }
 
     private Order createOrder(CreateOrderCommand command){
@@ -48,6 +50,7 @@ public class CreateOrder {
             .targetQuantity(command.getTargetQuantity())
             .price(command.getPrice().orElse(null))
             .traderId(command.getTraderId())
+            .priceSupplier(instrument -> priceBookEntryRepository.findByInstrument(instrument).getPrice())
             .build();
         orderRepository.save(order);
         order.getFulfillments().forEach(fulfillment -> {
