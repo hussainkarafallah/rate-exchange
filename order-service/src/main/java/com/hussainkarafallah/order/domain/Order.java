@@ -1,6 +1,7 @@
 package com.hussainkarafallah.order.domain;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,6 +18,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 
 @Getter
 @AllArgsConstructor
@@ -40,6 +42,15 @@ public class Order {
     @Nonnull
     List<Fulfillment> fulfillments;
 
+    @Nonnull
+    private final Instant dateCreated;
+
+    @Nonnull
+    private Instant dateUpdated;
+
+    @Setter
+    private Integer Version = 0;
+
     @Builder(builderMethodName = "newOrderBuilder")
     private Order(
         UUID id,
@@ -62,7 +73,8 @@ public class Order {
         this.state = OrderState.OPEN;
         this.orderType = orderType;
         this.traderId = traderId;
-
+        this.dateCreated = Instant.now();
+        this.dateUpdated = this.dateCreated;
         
         if (instrument.isComposite()) {
             throw new NotImplementedException("did not implement this yet for composite");

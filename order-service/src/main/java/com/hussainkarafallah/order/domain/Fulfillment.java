@@ -1,6 +1,7 @@
 package com.hussainkarafallah.order.domain;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 import com.hussainkarafallah.domain.FulfillmentState;
@@ -17,27 +18,31 @@ public class Fulfillment {
 
     @NonNull
     private final Instrument instrument;
-   
+
     @NonNull
     private FulfillmentState state;
-   
+
     @NonNull
     private final BigDecimal targetQuantity;
-   
+
     @NonNull
     private final BigDecimal targetPrice;
 
     private BigDecimal fulfilledQuantity;
     private BigDecimal fulfilledPrice;
 
-    private Fulfillment(
+    @NonNull
+    private Instant dateUpdated;
+
+    public Fulfillment(
         UUID id,
         Instrument instrument,
         FulfillmentState state,
         BigDecimal targetQuantity,
         BigDecimal targetPrice,
         BigDecimal fulfilledQuantity,
-        BigDecimal fulfilledPrice
+        BigDecimal fulfilledPrice,
+        Instant dateUpdate
     ) {
         this.id = id;
         this.instrument = instrument;
@@ -46,6 +51,7 @@ public class Fulfillment {
         this.targetPrice = targetPrice;
         this.fulfilledQuantity = fulfilledQuantity;
         this.fulfilledPrice = fulfilledPrice;
+        this.dateUpdated = dateUpdate;
         if (this.instrument.isComposite()) {
             throw new DomainValidationException("fulfillments can only be for simple instruments");
         }
@@ -57,7 +63,7 @@ public class Fulfillment {
     };
 
     public static Fulfillment newFulfillment(UUID id, Instrument instrument, BigDecimal targetQuantity, BigDecimal targetPrice) {
-        return new Fulfillment(id, instrument, FulfillmentState.NOT_COMPLETED, targetQuantity, targetPrice, BigDecimal.ZERO, null);
+        return new Fulfillment(id, instrument, FulfillmentState.NOT_COMPLETED, targetQuantity, targetPrice, BigDecimal.ZERO, null, Instant.now());
     }
 
     public void validate() {
